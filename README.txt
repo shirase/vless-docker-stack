@@ -7,6 +7,9 @@ FEATURES:
 - https://example.com/  -> opens normal HTML page
 - https://example.com/ws -> VLESS WebSocket endpoint
 
+ARCHITECTURE:
+nginx-proxy (SSL/HTTPS) -> nginx-router (traffic routing) -> 3x-ui (VLESS) / static site
+
 SETUP:
 1) Copy .env.example to .env:
    Linux/Mac: cp .env.example .env
@@ -45,4 +48,5 @@ SECURITY NOTES:
 - xui-data/ directory is excluded from git (contains sensitive data)
 - Keep your .env file private (not committed to git)
 - Port 10000 (VLESS) is only accessible within Docker network
+- nginx-router handles all traffic routing internally
 - Consider restricting access to port 2053 using firewall rules

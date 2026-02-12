@@ -10,9 +10,8 @@ services:
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
-    configs:
-      - source: vhost_config
-        target: /etc/nginx/vhost.d/${DOMAIN}
+    environment:
+      - HTTPS_METHOD=redirect  # Force HTTP to HTTPS redirect
     networks:
       - vless_net
 
@@ -32,34 +31,65 @@ services:
     networks:
       - vless_net
 
+  nginx-router:
+    image: nginx:alpine
+    container_name: nginx-router
+    restart: always
+    # Internal port only - accessed via nginx-proxy
+    expose:
+      - "80"
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+    configs:
+      - source: nginx_config
+        target: /etc/nginx/conf.d/default.conf
+    environment:
+      - VIRTUAL_HOST=${DOMAIN}
+      - LETSENCRYPT_HOST=${DOMAIN}
+      - LETSENCRYPT_EMAIL=${ADMIN_EMAIL}
+    networks:
+      - vless_net
+    depends_on:
+      - 3x-ui
+
   3x-ui:
     image: ghcr.io/mhsanaei/3x-ui:latest
     container_name: 3x-ui
     restart: always
     ports:
       - "${XUI_PANEL_PORT:-2053}:2053"  # Admin panel (direct access)
-    # Port 10000 (VLESS) is only accessed by nginx-proxy within Docker network
+    # Port 10000 (VLESS) is only accessed by nginx-router within Docker network
     volumes:
       - ./xui-data:/etc/x-ui
-    environment:
-      - VIRTUAL_HOST=${DOMAIN}
-      - LETSENCRYPT_HOST=${DOMAIN}
-      - LETSENCRYPT_EMAIL=${ADMIN_EMAIL}
-      - VIRTUAL_PORT=${XUI_VIRTUAL_PORT:-10000}
     networks:
       - vless_net
 
 configs:
-  vhost_config:
+  nginx_config:
     content: |
-      # WebSocket for VLESS
-      location ${VLESS_WS_PATH:-/ws} {
-          proxy_pass http://3x-ui:${XUI_VIRTUAL_PORT:-10000};
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $$http_upgrade;
-          proxy_set_header Connection "upgrade";
-          proxy_set_header Host $$host;
-          proxy_read_timeout 3600s;
+      server {
+          listen 80;
+          server_name _;
+          
+          # Static website (camouflage)
+          location / {
+              root /usr/share/nginx/html;
+              index index.html;
+              try_files $$uri $$uri/ =404;
+          }
+          
+          # WebSocket for VLESS
+          location ${VLESS_WS_PATH:-/ws} {
+              proxy_pass http://3x-ui:${XUI_VIRTUAL_PORT:-10000};
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $$http_upgrade;
+              proxy_set_header Connection "upgrade";
+              proxy_set_header Host $$host;
+              proxy_set_header X-Real-IP $$remote_addr;
+              proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $$scheme;
+              proxy_read_timeout 3600s;
+          }
       }
 
 volumes:
