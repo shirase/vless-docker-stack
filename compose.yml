@@ -79,8 +79,6 @@ services:
     # All ports accessed only within Docker network
     volumes:
       - ./xui-data:/etc/x-ui
-    environment:
-      - XRAY_VMESS_AEAD_FORCED=false
     networks:
       - vless_net
 
