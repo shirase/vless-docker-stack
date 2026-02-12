@@ -1,0 +1,25 @@
+# Environment files
+.env
+
+# 3x-ui data (contains sensitive configuration and databases)
+xui-data/
+
+# Docker volumes backup
+*.tar
+*.tar.gz
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*~

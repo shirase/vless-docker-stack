@@ -1,0 +1,72 @@
+services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:latest
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - certs:/etc/nginx/certs
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    configs:
+      - source: vhost_config
+        target: /etc/nginx/vhost.d/${DOMAIN}
+    networks:
+      - vless_net
+
+  acme-companion:
+    image: nginxproxy/acme-companion:latest
+    container_name: nginx-proxy-acme
+    restart: always
+    depends_on:
+      - nginx-proxy
+    volumes:
+      - certs:/etc/nginx/certs
+      - html:/usr/share/nginx/html
+      - acme:/etc/acme.sh
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - DEFAULT_EMAIL=${ADMIN_EMAIL}
+    networks:
+      - vless_net
+
+  3x-ui:
+    image: ghcr.io/mhsanaei/3x-ui:latest
+    container_name: 3x-ui
+    restart: always
+    ports:
+      - "${XUI_PANEL_PORT:-2053}:2053"  # Admin panel (direct access)
+    # Port 10000 (VLESS) is only accessed by nginx-proxy within Docker network
+    volumes:
+      - ./xui-data:/etc/x-ui
+    environment:
+      - VIRTUAL_HOST=${DOMAIN}
+      - LETSENCRYPT_HOST=${DOMAIN}
+      - LETSENCRYPT_EMAIL=${ADMIN_EMAIL}
+      - VIRTUAL_PORT=${XUI_VIRTUAL_PORT:-10000}
+    networks:
+      - vless_net
+
+configs:
+  vhost_config:
+    content: |
+      # WebSocket for VLESS
+      location ${VLESS_WS_PATH:-/ws} {
+          proxy_pass http://3x-ui:${XUI_VIRTUAL_PORT:-10000};
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $$http_upgrade;
+          proxy_set_header Connection "upgrade";
+          proxy_set_header Host $$host;
+          proxy_read_timeout 3600s;
+      }
+
+volumes:
+  certs:
+  html:
+  acme:
+
+networks:
+  vless_net:
+    driver: bridge
