@@ -38,7 +38,6 @@ services:
     image: nginx:alpine
     container_name: nginx-router
     restart: always
-    # Internal port only - accessed via nginx-proxy
     expose:
       - "80"
     volumes:
@@ -49,6 +48,24 @@ services:
     environment:
       - VIRTUAL_HOST=${DOMAIN}
       - LETSENCRYPT_HOST=${DOMAIN}
+      - LETSENCRYPT_EMAIL=${ADMIN_EMAIL}
+    networks:
+      - vless_net
+    depends_on:
+      - 3x-ui
+
+  3x-ui-panel:
+    image: nginx:alpine
+    container_name: 3x-ui-panel
+    restart: always
+    expose:
+      - "80"
+    configs:
+      - source: panel_config
+        target: /etc/nginx/conf.d/default.conf
+    environment:
+      - VIRTUAL_HOST=${PANEL_DOMAIN}
+      - LETSENCRYPT_HOST=${PANEL_DOMAIN}
       - LETSENCRYPT_EMAIL=${ADMIN_EMAIL}
     networks:
       - vless_net
@@ -72,40 +89,6 @@ configs:
           listen 80;
           server_name _;
           
-          # Admin panel (3x-ui) - rewrite path and proxy
-          location /panel/ {
-              proxy_pass http://3x-ui:2053/;
-              proxy_http_version 1.1;
-              proxy_set_header Host $$host;
-              proxy_set_header X-Real-IP $$remote_addr;
-              proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
-              proxy_set_header X-Forwarded-Proto $$scheme;
-              
-              # WebSocket support
-              proxy_set_header Upgrade $$http_upgrade;
-              proxy_set_header Connection "upgrade";
-              
-              # Cookie path rewrite
-              proxy_cookie_path / /panel/;
-              
-              # Rewrite HTML content to fix paths
-              sub_filter_once off;
-              sub_filter_types text/html text/css text/javascript application/javascript;
-              sub_filter 'href="/' 'href="/panel/';
-              sub_filter 'src="/' 'src="/panel/';
-              sub_filter 'action="/' 'action="/panel/';
-              sub_filter 'url(/' 'url(/panel/';
-              sub_filter "href='/" "href='/panel/";
-              sub_filter "src='/" "src='/panel/";
-              sub_filter "action='/" "action='/panel/";
-              proxy_set_header Accept-Encoding "";
-          }
-          
-          # Admin panel root (redirect to /panel/)
-          location = /panel {
-              return 301 $$scheme://$$host/panel/;
-          }
-          
           # WebSocket for VLESS
           location ${VLESS_WS_PATH:-/ws} {
               proxy_pass http://3x-ui:${XUI_VIRTUAL_PORT:-10000};
@@ -119,11 +102,32 @@ configs:
               proxy_read_timeout 3600s;
           }
           
-          # Static website (camouflage) - must be last
+          # Static website (camouflage)
           location / {
               root /usr/share/nginx/html;
               index index.html;
               try_files $$uri $$uri/ =404;
+          }
+      }
+  
+  panel_config:
+    content: |
+      server {
+          listen 80;
+          server_name _;
+          
+          # Proxy all requests to 3x-ui panel
+          location / {
+              proxy_pass http://3x-ui:${XUI_PANEL_PORT:-2053};
+              proxy_http_version 1.1;
+              proxy_set_header Host $$host;
+              proxy_set_header X-Real-IP $$remote_addr;
+              proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $$scheme;
+              
+              # WebSocket support
+              proxy_set_header Upgrade $$http_upgrade;
+              proxy_set_header Connection "upgrade";
           }
       }
 
