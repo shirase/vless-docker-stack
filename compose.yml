@@ -72,25 +72,27 @@ configs:
           listen 80;
           server_name _;
           
-          # Admin panel (3x-ui) - with all subpaths
-          location ~ ^${PANEL_PATH:-/panel}(/.*)?$$ {
-              proxy_pass http://3x-ui:${XUI_PANEL_PORT:-2053}$$1$$is_args$$args;
+          # Admin panel (3x-ui) - rewrite path and proxy
+          location /panel/ {
+              rewrite ^/panel/(.*) /$$1 break;
+              proxy_pass http://3x-ui:2053/;
               proxy_http_version 1.1;
               proxy_set_header Host $$host;
               proxy_set_header X-Real-IP $$remote_addr;
               proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
               proxy_set_header X-Forwarded-Proto $$scheme;
-              proxy_set_header X-Forwarded-Host $$host;
-              proxy_set_header X-Forwarded-Port $$server_port;
               
-              # WebSocket support for panel
+              # WebSocket support
               proxy_set_header Upgrade $$http_upgrade;
               proxy_set_header Connection "upgrade";
               
-              # Rewrite redirects
-              proxy_redirect ~^http://[^/]+/(.*) ${PANEL_PATH:-/panel}/$$1;
-              proxy_redirect ~^https://[^/]+/(.*) ${PANEL_PATH:-/panel}/$$1;
-              proxy_redirect / ${PANEL_PATH:-/panel}/;
+              # Cookie path rewrite
+              proxy_cookie_path / /panel/;
+          }
+          
+          # Admin panel root (redirect to /panel/)
+          location = /panel {
+              return 301 $$scheme://$$host/panel/;
           }
           
           # WebSocket for VLESS
