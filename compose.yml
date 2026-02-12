@@ -74,7 +74,6 @@ configs:
           
           # Admin panel (3x-ui) - rewrite path and proxy
           location /panel/ {
-              rewrite ^/panel/(.*) /$$1 break;
               proxy_pass http://3x-ui:2053/;
               proxy_http_version 1.1;
               proxy_set_header Host $$host;
@@ -88,6 +87,18 @@ configs:
               
               # Cookie path rewrite
               proxy_cookie_path / /panel/;
+              
+              # Rewrite HTML content to fix paths
+              sub_filter_once off;
+              sub_filter_types text/html text/css text/javascript application/javascript;
+              sub_filter 'href="/' 'href="/panel/';
+              sub_filter 'src="/' 'src="/panel/';
+              sub_filter 'action="/' 'action="/panel/';
+              sub_filter 'url(/' 'url(/panel/';
+              sub_filter "href='/" "href='/panel/";
+              sub_filter "src='/" "src='/panel/";
+              sub_filter "action='/" "action='/panel/";
+              proxy_set_header Accept-Encoding "";
           }
           
           # Admin panel root (redirect to /panel/)
