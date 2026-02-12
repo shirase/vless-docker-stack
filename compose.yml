@@ -79,6 +79,8 @@ services:
     # All ports accessed only within Docker network
     volumes:
       - ./xui-data:/etc/x-ui
+    environment:
+      - XRAY_VMESS_AEAD_FORCED=false
     networks:
       - vless_net
 
@@ -116,7 +118,17 @@ configs:
           listen 80;
           server_name _;
           
-          # Proxy all requests to 3x-ui panel
+          # Subscription service (sub server on port 2096)
+          location /sub/ {
+              proxy_pass http://3x-ui:2096/sub/;
+              proxy_http_version 1.1;
+              proxy_set_header Host $$host;
+              proxy_set_header X-Real-IP $$remote_addr;
+              proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $$scheme;
+          }
+          
+          # Proxy all other requests to 3x-ui panel
           location / {
               proxy_pass http://3x-ui:${XUI_PANEL_PORT:-2053};
               proxy_http_version 1.1;
