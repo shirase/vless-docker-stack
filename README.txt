@@ -42,8 +42,9 @@ Subscription URL: https://panel.example.com/sub/YOUR_SUB_ID
 CONFIGURE 3X-UI SUBSCRIPTION:
 After first login to panel, go to:
 Panel Settings -> Subscription Settings
-- Subscription URL: https://panel.example.com/sub/
-(Remove port :2096 and use HTTPS with your panel domain)
+- Subscription Root Path: /sub/
+  (Must start and end with '/')
+- The panel will automatically use your domain (panel.example.com) with HTTPS
 
 Inbound settings (in 3x-ui panel):
 Protocol: VLESS
