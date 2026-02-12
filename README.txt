@@ -4,11 +4,12 @@ Example domain: example.com
 Email: admin@example.com
 
 FEATURES:
-- https://example.com/  -> opens normal HTML page
-- https://example.com/ws -> VLESS WebSocket endpoint
+- https://example.com/       -> opens normal HTML page (camouflage)
+- https://example.com/panel  -> 3x-ui admin panel (via HTTPS)
+- https://example.com/ws     -> VLESS WebSocket endpoint
 
 ARCHITECTURE:
-nginx-proxy (SSL/HTTPS) -> nginx-router (traffic routing) -> 3x-ui (VLESS) / static site
+nginx-proxy (SSL/HTTPS) -> nginx-router (traffic routing) -> 3x-ui (VLESS/Panel) / static site
 
 SETUP:
 1) Copy .env.example to .env:
@@ -26,8 +27,8 @@ SETUP:
 6) Start the stack:
    docker compose up -d
 
-3x-ui panel:
-http://SERVER_IP:2053
+3x-ui admin panel:
+https://example.com/panel (your domain from .env)
 
 Inbound settings:
 Protocol: VLESS
@@ -47,6 +48,7 @@ SNI: example.com (your domain from .env)
 SECURITY NOTES:
 - xui-data/ directory is excluded from git (contains sensitive data)
 - Keep your .env file private (not committed to git)
-- Port 10000 (VLESS) is only accessible within Docker network
+- All 3x-ui ports (2053, 10000) are only accessible within Docker network
+- Admin panel accessible only via HTTPS at /panel path
 - nginx-router handles all traffic routing internally
-- Consider restricting access to port 2053 using firewall rules
+- Consider using basic auth or IP whitelist for /panel location
