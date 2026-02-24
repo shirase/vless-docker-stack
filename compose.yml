@@ -79,6 +79,7 @@ services:
     # All ports accessed only within Docker network
     volumes:
       - ./xui-data:/etc/x-ui
+      - ./geoip/geoip.dat:/usr/local/share/xray/geoip.dat
     networks:
       - vless_net
 
